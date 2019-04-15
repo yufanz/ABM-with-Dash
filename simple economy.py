@@ -24,15 +24,24 @@ app.layout = html.Div([
 
     dcc.Graph(
         id='graph',
+    ),
+
+    dcc.Interval(
+        id='interval-component',
+        interval=1*10,
+        n_intervals=0
     )
 ])
 
 @app.callback(Output('memory', 'data'),
-              [Input('step-button', 'n_clicks')],
+              [Input('step-button', 'n_clicks'),
+               Input('interval-component', 'n_intervals')],
               [State('memory', 'data')])
-def on_click(n_clicks, data):
+def on_click(n_clicks, n_intervals, data):
     if n_clicks is None:
         raise PreventUpdate
+
+    # print("updating data")
 
     data = data or [
         {'x': [10 for i in range(100)], 
@@ -56,6 +65,7 @@ def on_data(ts, data):
 
     # data = data or {}
     # return data
+    # print("updating figure")
 
     return {
         'data': [
@@ -63,10 +73,10 @@ def on_data(ts, data):
         ],
         'layout': go.Layout(
             xaxis=dict(
-                range=[-10, 50]
+                range=[-100, 100]
             ),
             yaxis=dict(
-                range=[0, 100]
+                range=[-100, 100]
             )
         )
     }
