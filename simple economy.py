@@ -20,6 +20,7 @@ app.layout = html.Div([
 
     html.Div([
         html.Button('Step', id='step-button'),
+        html.Button('Flip', id='flip-button')
     ]),
 
     dcc.Graph(
@@ -81,6 +82,19 @@ def on_data(ts, data):
         )
     }
 
+@app.callback(
+    Output('interval-component', 'max_intervals'),
+    [Input('flip-button', 'n_clicks')],
+    [State('interval-component', 'max_intervals')]
+)
+def flip(n_clicks, max_intervals):
+    if n_clicks is None:
+        raise PreventUpdate
+    print("flipped")
+    if max_intervals == -1:
+        return 1
+    else:
+        return -1
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=8077, threaded=True)
