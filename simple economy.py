@@ -20,7 +20,7 @@ app.layout = html.Div([
 
     html.Div([
         html.Button('Step', id='step-button'),
-        html.Button('Flip', id='flip-button')
+        html.Button('Play', id='flip-button')
     ]),
 
     dcc.Graph(
@@ -30,19 +30,19 @@ app.layout = html.Div([
     dcc.Interval(
         id='interval-component',
         interval=1*10,
-        n_intervals=0
+        n_intervals=0,
+        max_intervals=0
     )
 ])
 
 @app.callback(Output('memory', 'data'),
               [Input('step-button', 'n_clicks'),
-               Input('interval-component', 'n_intervals')],
+               Input('interval-component', 'n_intervals'),
+               Input('interval-component', 'max_intervals')],
               [State('memory', 'data')])
-def on_click(n_clicks, n_intervals, data):
-    if n_clicks is None:
+def step(n_clicks, n_intervals, max_intervals, data):
+    if n_clicks is None and max_intervals == 0:
         raise PreventUpdate
-
-    # print("updating data")
 
     data = data or [
         {'x': [10 for i in range(100)], 
@@ -90,7 +90,6 @@ def on_data(ts, data):
 def flip(n_clicks, max_intervals):
     if n_clicks is None:
         raise PreventUpdate
-    print("flipped")
     if max_intervals == -1:
         return 1
     else:
