@@ -12,19 +12,31 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
+# GLOBALS
+
+num_of_agents = 500
+
+initial_wealth = 100
+
 initial_data = [{
-    'x': [10 for i in range(100)],
-    'y': [i for i in range(100)]
+    'x': [initial_wealth for i in range(num_of_agents)],
+    'y': [i for i in range(num_of_agents)]
 }]
 
-initial_layout = go.Layout(
+scatter_plot_layout = go.Layout(
     xaxis=dict(
-        range=[-100, 100]
+        range=[0, 500]
     ),
     yaxis=dict(
-        range=[-100, 100]
+        range=[0, num_of_agents]
     )
 )
+
+histogram_layout = go.Layout(
+
+)
+
+# CORE
 
 app.layout = html.Div([
 
@@ -41,7 +53,17 @@ app.layout = html.Div([
         id='scatter-plot',
         figure={
             'data': [go.Scatter(x=initial_data[0]['x'], y=initial_data[0]['y'], mode='markers')],
-            'layout': initial_layout
+            'layout': scatter_plot_layout
+        }
+    ),
+
+    dcc.Graph(
+        id='histogram',
+        figure={
+            'data': [go.Histogram(
+                        x=initial_data[0]['x'], 
+                        xbins=dict(start=0, end=500, size=10), 
+                        autobinx = False)],
         }
     ),
 
@@ -65,8 +87,6 @@ def step(n_clicks, n_intervals, max_intervals, data):
     if n_clicks is None and max_intervals == 0:
         raise PreventUpdate
 
-    print("stepping")
-
     data = data or initial_data
 
     num_of_benefactors = 0
@@ -77,9 +97,8 @@ def step(n_clicks, n_intervals, max_intervals, data):
             num_of_benefactors += 1
 
     for i in range(num_of_benefactors):
-        newX[random.randint(0,99)] += 1
+        newX[random.randint(0,num_of_agents-1)] += 1
 
-    print(newX)
     return [{'x': newX, 'y': data[0]['y']}]
 
 
@@ -98,13 +117,19 @@ def play(n_clicks, max_intervals):
 
 
 @app.callback(
-    Output('scatter-plot', 'figure'),
+    [Output('scatter-plot', 'figure'),
+     Output('histogram', 'figure')],
     [Input('memory', 'data')])
 def update_figure(data):
 
     return {
         'data': [go.Scatter(x=data[0]['x'], y=data[0]['y'], mode='markers')],
-        'layout': initial_layout
+        'layout': scatter_plot_layout
+    }, {
+        'data': [go.Histogram(
+                        x=data[0]['x'], 
+                        xbins=dict(start=0, end=500, size=10), 
+                        autobinx = False)],
     }
 
 
