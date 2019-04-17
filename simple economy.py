@@ -6,7 +6,7 @@ import plotly.graph_objs as go
 from dash.dependencies import Output, Input, State
 from dash.exceptions import PreventUpdate
 
-import random
+import numpy, random
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -65,13 +65,21 @@ def step(n_clicks, n_intervals, max_intervals, data):
     if n_clicks is None and max_intervals == 0:
         raise PreventUpdate
 
+    print("stepping")
+
     data = data or initial_data
 
-    newX = [i - 1 for i in data[0]['x']]
+    num_of_benefactors = 0
+    newX = data[0]['x']
     for i in range(len(newX)):
-        idx = random.randint(0, len(newX)-1)
-        newX[idx] = newX[idx] + 1
+        if newX[i] > 0:
+            newX[i] -= 1
+            num_of_benefactors += 1
 
+    for i in range(num_of_benefactors):
+        newX[random.randint(0,99)] += 1
+
+    print(newX)
     return [{'x': newX, 'y': data[0]['y']}]
 
 
