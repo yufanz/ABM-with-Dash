@@ -21,10 +21,9 @@ import plotly.graph_objs                as go
 ########################
 import numpy
 import random
-#import os
 
 
-#external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+#external_stylesheets = ['https:#codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 
@@ -32,7 +31,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 # Global Variables
 ########################
 initial_wealth = 100
-interval = 100
+interval = 10
 delay = 10
 n_agents = 200
 xaxis_max = 5*initial_wealth
@@ -45,6 +44,19 @@ layout = go.Layout(
         range=[0, n_agents]
     )
 )
+
+colors = [
+	'#1f77b4',	# muted blue
+    '#ff7f0e',  # safety orange
+    '#2ca02c',  # cooked asparagus green
+    '#d62728',  # brick red
+    '#9467bd',  # muted purple
+    '#8c564b',  # chestnut brown
+    '#e377c2',  # raspberry yogurt pink
+    '#7f7f7f',  # middle gray
+    '#bcbd22',  # curry yellow-green
+    '#17becf'   # blue-teal
+]
 
 ########################
 # Derivatives
@@ -76,6 +88,10 @@ app.layout = html.Div([
     	id='quantiles'
     ),
 
+    dcc.Store(
+    	id='color'
+    ),
+
     dcc.Interval(
         id='interval',
         interval=interval,
@@ -90,6 +106,10 @@ app.layout = html.Div([
 
     html.Button('Play',
         id='play_button',
+    ),
+
+    html.Button('Group',
+    	id='group_button',
     ),
 
     daq.LEDDisplay(
@@ -206,11 +226,29 @@ def play(n_clicks, max_intervals):
         return -1
 
 @app.callback(
+	Output('color', 'data'),
+	[Input('group_button', 'n_clicks')],
+	[State('data', 'data')])
+def group(n_clicks, data):
+
+	if n_clicks is None or data is None:
+		raise PreventUpdate
+
+	argsort = numpy.argsort(data[0]['x'])
+	length = len(data[0]['x'])
+	result = [False]*length
+
+	for i in range(int(n_agents * 0.9), length):
+		result[argsort[i]] = True
+	return result
+
+@app.callback(
     [Output('histogram', 'figure'),
      Output('scatter_plot', 'figure')],
-    [Input('data', 'data')],
+    [Input('data', 'data'),
+     Input('color', 'data')],
     [State('interval', 'n_intervals')])
-def update_figure(data, n_intervals):
+def update_figure(data, color, n_intervals):
 
     if data is None or n_intervals % delay != 0:
         raise PreventUpdate
@@ -223,34 +261,29 @@ def update_figure(data, n_intervals):
             histnorm='probability')],
     }
 
+    color = color or [False]*len(data[0]['x'])
+    marker_color = [colors[0]]*len(data[0]['x'])
+    for c in range(len(color)):
+    	if color[c]:
+    		marker_color[c] = colors[1]
+
     scatter_plot = {
         'data': [go.Scatter(
             x=data[0]['x'], 
             y=data[0]['y'], 
-            mode='markers')],
+            mode='markers',
+            marker=dict(color=marker_color))],
         'layout': layout
     }
 
-    # time_series = {
-    # 	'data': [
-    # 		go.Scatter(
-    # 			x=range(0, len(quantiles[0]['bottom_50_pct'])-1), 
-    # 			y=quantiles[0]['bottom_50_pct']),
-    # 		go.Scatter(
-    # 			x=range(0, len(quantiles[0]['top_10_pct'])-1), 
-    # 			y=quantiles[0]['top_10_pct'])
-    # 	]
-    # }
-
-    return histogram, scatter_plot #, time_series
+    return histogram, scatter_plot
 
 @app.callback(
 	Output('time_series', 'figure'),
-	[Input('quantiles', 'data')],
-	[State('interval', 'n_intervals')])
-def update_quantiles(quantiles, n_intervals):
+	[Input('quantiles', 'data')])
+def update_quantiles(quantiles):
 
-	if quantiles is None or n_intervals % delay != 0:
+	if quantiles is None or len(quantiles[0]['bottom_50_pct']) % delay != 0:
 		raise PreventUpdate
 
 	bottom_50_pcts = quantiles[0]['bottom_50_pct']
@@ -263,11 +296,6 @@ def update_quantiles(quantiles, n_intervals):
 			go.Scatter(x=n_indices, y=top_10_pcts),
 		]
 	}
-
-########################
-# Markdowns
-########################
-
 
 server = app.server
 if __name__ == '__main__':
