@@ -36,15 +36,6 @@ delay = 10
 n_agents = 200
 xaxis_max = 5*initial_wealth
 
-layout = go.Layout(
-    xaxis=dict(
-        range=[0, xaxis_max]
-    ),
-    yaxis=dict(
-        range=[0, n_agents]
-    )
-)
-
 colors = [
 	'#1f77b4',	# muted blue
     '#ff7f0e',  # safety orange
@@ -57,14 +48,18 @@ colors = [
     '#bcbd22',  # curry yellow-green
     '#17becf'   # blue-teal
 ]
-
-########################
-# Derivatives
-########################
 initial_data = [{
     'x': [initial_wealth for i in range(n_agents)],
     'y': [i+1 for i in range(n_agents)]
 }]
+layout = go.Layout(
+    xaxis=dict(
+        range=[0, xaxis_max]
+    ),
+    yaxis=dict(
+        range=[0, n_agents]
+    )
+)
 
 ########################
 # Functions
@@ -105,11 +100,24 @@ app.layout = html.Div([
     ),
 
     html.Button('Play',
+
         id='play_button',
     ),
 
     html.Button('Group',
+
     	id='group_button',
+    ),
+
+    dcc.Dropdown(
+    	id='group',
+    	options=[
+    		{'label': 'Top 10%', 'value': 90},
+    		{'label': 'Top 25%', 'value': 75},
+    		{'label': 'Bottom 25%', 'value': 25},
+    		{'label': 'Bottom 10%', 'value': 10},
+    	],
+    	value=10
     ),
 
     daq.LEDDisplay(
@@ -228,18 +236,31 @@ def play(n_clicks, max_intervals):
 @app.callback(
 	Output('color', 'data'),
 	[Input('group_button', 'n_clicks')],
-	[State('data', 'data')])
-def group(n_clicks, data):
+	[State('data', 'data'),
+	 State('group', 'value')])
+def group(n_clicks, data, group):
 
 	if n_clicks is None or data is None:
 		raise PreventUpdate
+
+	print('group value: ', group)
 
 	argsort = numpy.argsort(data[0]['x'])
 	length = len(data[0]['x'])
 	result = [False]*length
 
-	for i in range(int(n_agents * 0.9), length):
-		result[argsort[i]] = True
+	if group == 90:
+		for i in range(int(n_agents * 0.9), length):
+			result[argsort[i]] = True
+	elif group == 75:
+		for i in range(int(n_agents * 0.75), length):
+			result[argsort[i]] = True
+	elif group == 25:
+		for i in range(int(n_agents * 0.25)):
+			result[argsort[i]] = True
+	elif group == 10:
+		for i in range(int(n_agents * 0.1)):
+			result[argsort[i]] = True
 	return result
 
 @app.callback(
