@@ -85,13 +85,13 @@ app.layout = html.Div([
 
     html.Div(id='my-div'),
 
-    # html.Div([
+    html.Div([
 
-    #     daq.LEDDisplay(
-    #         id='n_iterations',
-    #         label='Iterations',
-    #         value=0
-    #     ),
+        daq.LEDDisplay(
+            id='n_iterations',
+            label='Iterations',
+            value=0
+        ),
 
     #     daq.LEDDisplay(
     #         id='bottom-50-percent',
@@ -104,7 +104,7 @@ app.layout = html.Div([
     #         label='Wealth of top 10%',
     #         value=initial_wealth*num_of_agents*0.1
     #     ),
-    # ]),
+    ]),
 
     html.Div([
         html.Button('Step', id='step-button'),
@@ -124,7 +124,7 @@ app.layout = html.Div([
     [Output('memory', 'data'),
      # Output('bottom-50-percent', 'value'),
      # Output('top-10-percent', 'value'),
-     # Output('n_iterations', 'value')],
+     Output('n_iterations', 'value'),
      Output('my-div', 'children')],
     [Input('step-button', 'n_clicks'),
      Input('interval', 'n_intervals'),
@@ -149,7 +149,7 @@ def step(n_clicks, n_intervals, max_intervals, data):
 
     bottom_fifty, top_ten = quantiles(newX)
 
-    return [{'x': newX, 'y': data[0]['y']}], n_intervals # bottom_fifty, top_ten, n_intervals
+    return [{'x': newX, 'y': data[0]['y']}], n_intervals, n_intervals # bottom_fifty, top_ten, n_intervals
 
 
 @app.callback(
