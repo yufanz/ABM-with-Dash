@@ -1,136 +1,231 @@
 # app.py
 
+########################
+# Dash modules
+########################
 import dash
-import dash_bootstrap_components    as dbc
-import dash_core_components         as dcc
-import dash_daq                     as daq
-import dash_html_components         as html
+import dash_bootstrap_components        as dbc
+import dash_core_components             as dcc
+import dash_daq                         as daq
+import dash_html_components             as html
+from dash.dependencies                  import Input, Output, State
+from dash.exceptions                    import PreventUpdate
 
-import plotly.graph_objs            as go
+########################
+# Plotly modules
+########################
+import plotly.graph_objs                as go
 
-from dash.dependencies import Output, Input, State
-from dash.exceptions import PreventUpdate
+########################
+# Python modules
+########################
+import numpy
+import random
 
-import os, numpy, random
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+external_stylesheets = ['https:#codepen.io/chriddyp/pen/bWLwgP.css']
+# external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
+# app = dash.Dash(__name__, external_stylesheets=[external_stylesheets])
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-server = app.server
-
-# GLOBALS
-
-num_of_agents = 200
-
+########################
+# Global Variables
+########################
 initial_wealth = 100
+interval = 10
+delay = 10
+n_agents = 100
+xaxis_max = 5*initial_wealth
+total_wealth = initial_wealth * n_agents
 
-initial_data = [{
-    'x': [initial_wealth for i in range(num_of_agents)],
-    'y': [i for i in range(num_of_agents)]
-}]
+colors = [
+	'#1f77b4',	# muted blue
+    '#ff7f0e',  # safety orange
+    '#2ca02c',  # cooked asparagus green
+    '#d62728',  # brick red
+    '#9467bd',  # muted purple
+    '#8c564b',  # chestnut brown
+    '#e377c2',  # raspberry yogurt pink
+    '#7f7f7f',  # middle gray
+    '#bcbd22',  # curry yellow-green
+    '#17becf'   # blue-teal
+]
+
+initial_data = [{'x': [initial_wealth for i in range(n_agents)]}]
+agents = numpy.arange(1, n_agents+1)
+
+histogram_layout = go.Layout(
+    xaxis=dict(
+        range=[0, xaxis_max],
+        title="Wealth"
+    ),
+    yaxis=dict(
+        range=[0, 1],
+        title="Density"
+    ),
+    hovermode='closest'
+)
 
 scatter_plot_layout = go.Layout(
     xaxis=dict(
-        range=[0, 500]
+        range=[0, xaxis_max],
+        title="Wealth"
     ),
     yaxis=dict(
-        range=[0, num_of_agents]
+        range=[0, n_agents],
+        title="Person"
     ),
-    # width=500
+    hovermode='closest'
 )
 
-def quantiles(x):
-    fifty_percent_cutoff = int(num_of_agents / 2)
-    ninety_percentcutoff = int(num_of_agents * 9 / 10)
+time_series_layout = go.Layout(
+	xaxis=dict(
+        title="Time"
+    ),
+    yaxis=dict(
+        title="Wealth"
+    ),
+)
+
+def get_quantiles(x):
     y = numpy.sort(x)
-    return sum(y[:fifty_percent_cutoff]), sum(y[ninety_percentcutoff:])
+    bottom_fifty_pct = sum(y[:int(n_agents/2)])
+    top_10_pct = sum(y[int(n_agents*9/10):])
+    return bottom_fifty_pct, top_10_pct
 
-# CORE
-
+########################
+# Layout
+########################
 app.layout = html.Div([
 
-    html.H1("Simple Economy"),
+	html.P("This is an implementation and extension to the classical agent-based model, Simple Economy, in Uri Wilensky's Introduction to Agent-Based Modeling."),
 
-    dcc.Store(
-        id='memory'
+	html.P("The rules are simple. Everyone in an economy starts with 100 dollars, and gives one to a random other every day as long as he/she has any."),
+
+	html.P("The interesting observation is that very soon, despite the fair rules, the wealthiest 10 percent of the population will have more than 50 percent of all the wealth in the economy."),
+
+	html.P("Click the step-button to see what happens after a day. Click the play-button to run the simulation infinitely, and to pause it."),
+
+	html.P("You can also group an income group while running the simulation, to see that the rich don't stay rich, and the poor don't actually stay poor, given time."),
+
+    dcc.Store(id='data'),
+
+    dcc.Store(id='quantiles'),
+
+    dcc.Store(id='color'),
+
+    dcc.Interval(id='interval',
+        interval=interval,
+        max_intervals=0,
+        n_intervals=0,
     ),
 
     dbc.Container([
-        dbc.Row([
-            dbc.Col(
-                dcc.Graph(
-                    id='scatter-plot',
-                    figure={
-                        'data': [go.Scatter(x=initial_data[0]['x'], y=initial_data[0]['y'], mode='markers')],
-                        'layout': scatter_plot_layout
-                    }
-                ),
-            ),
-            dbc.Col(
-                dcc.Graph(
-                    id='histogram',
-                    figure={
-                        'data': [go.Histogram(
-                                    x=initial_data[0]['x'], 
-                                    xbins=dict(start=0, end=500, size=5), 
-                                    autobinx = False,
-                                    histnorm='probability')],
-                        # 'layout': scatter_plot_layout
-                    }
-                ),
-            )
-        ])
+    	dbc.Row([
+    		dbc.Col([
+    			html.Button('Step', id='step_button', n_clicks=0),
+	    		html.Button('Play', id='play_button'),
+	    		html.Button('Group',id='group_button')
+    		]),
+    		dbc.Col([
+    			html.Div("Which income group to highlight?"),
+    			dcc.Dropdown(id='group',
+			    	options=[
+			    		{'label': 'Top 10%', 'value': 90},
+			    		{'label': 'Top 25%', 'value': 75},
+			    		{'label': 'Bottom 25%', 'value': 25},
+			    		{'label': 'Bottom 10%', 'value': 10}
+			    	],
+			    	value=90
+			    )
+		    ])
+    	])
     ]),
 
-    html.Div(id='my-div'),
+    dbc.Container([
+    	dbc.Row([
+    		dbc.Col(
+    			dcc.Graph(id='scatter_plot',
+			        figure={
+			            'data': [go.Scatter(
+			                x=initial_data[0]['x'], 
+			                y=agents, 
+			                mode='markers')],
+			            'layout': scatter_plot_layout
+			        }
+			    )
+    		),
+    		dbc.Col([
+			    daq.LEDDisplay(id='n_iterations',
+			        label='Iterations',
+			        value=0,
+			    ),
 
-    # html.Div([
+			    daq.LEDDisplay(id='bottom_50_pct',
+			        label='Wealth of bottom 50%',
+			        value=initial_wealth*n_agents*0.5,
+			    ),
 
-    #     daq.LEDDisplay(
-    #         id='n_iterations',
-    #         label='Iterations',
-    #         value=0
-    #     ),
+			    daq.LEDDisplay(id='top_10_pct',
+			        label='Wealth of top 10%',
+			        value=initial_wealth*n_agents*0.1,
+			    ),
 
-    #     daq.LEDDisplay(
-    #         id='bottom-50-percent',
-    #         label='Wealth of bottom 50%',
-    #         value=initial_wealth*num_of_agents*0.5
-    #     ),
-
-    #     daq.LEDDisplay(
-    #         id='top-10-percent',
-    #         label='Wealth of top 10%',
-    #         value=initial_wealth*num_of_agents*0.1
-    #     ),
-    # ]),
-
-    html.Div([
-        html.Button('Step', id='step-button'),
-        html.Button('Play / Pause', id='play-button')
+			    daq.LEDDisplay(id='total_wealth',
+			        label='Total wealth',
+			        value=total_wealth,
+			    )
+    		])
+    	])
     ]),
 
-    dcc.Interval(
-        id='interval',
-        interval=1*100,
-        n_intervals=0,
-        max_intervals=0
-    )
+    dbc.Container([
+    	dbc.Row([
+    		dbc.Col([
+    			dcc.Graph(id='histogram',
+			        figure={
+			            'data': [go.Histogram(
+			                x=initial_data[0]['x'], 
+			                xbins=dict(start=0, end=xaxis_max, size=5), 
+			                autobinx = False,
+			                histnorm='probability')
+			            ],
+			            'layout': histogram_layout
+			        }
+			    ),
+			]),
+			dbc.Col([
+			    dcc.Graph(id='time_series',
+			    	figure={
+			    		'data': [
+			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5], name="Bottom 50%"),
+			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1], name="Top 10%")
+			    		],
+			    		'layout': time_series_layout
+			    	}
+			    )
+    		])
+    	])
+    ])
 ])
 
+########################
+# Callbacks
+########################
 
 @app.callback(
-    [Output('memory', 'data'),
-     # Output('bottom-50-percent', 'value'),
-     # Output('top-10-percent', 'value'),
-     # Output('n_iterations', 'value')],
-     Output('my-div', 'children')],
-    [Input('step-button', 'n_clicks'),
+    [Output('bottom_50_pct', 'value'),
+     Output('top_10_pct', 'value'),
+     Output('n_iterations', 'value'),
+     Output('data', 'data'),
+     Output('quantiles', 'data')],
+    [Input('interval', 'max_intervals'),
      Input('interval', 'n_intervals'),
-     Input('interval', 'max_intervals')],
-    [State('memory', 'data')])
-def step(n_clicks, n_intervals, max_intervals, data):
+     Input('step_button', 'n_clicks')],
+    [State('data', 'data'),
+     State('quantiles', 'data')])
+def step(max_intervals, n_intervals, n_clicks, data, quantiles):
 
     if n_clicks is None and max_intervals == 0:
         raise PreventUpdate
@@ -143,18 +238,30 @@ def step(n_clicks, n_intervals, max_intervals, data):
         if newX[i] > 0:
             newX[i] -= 1
             num_of_benefactors += 1
-
     for i in range(num_of_benefactors):
-        newX[random.randint(0,num_of_agents-1)] += 1
+        newX[random.randint(0,n_agents-1)] += 1
 
-    bottom_fifty, top_ten = quantiles(newX)
+    bottom_50_pct, top_10_pct = get_quantiles(newX)
+    if quantiles is None:
+      quantiles = [{
+          'bottom_50_pct': [bottom_50_pct],
+          'top_10_pct': [top_10_pct]
+      }]
+    else:
+      quantiles = [{
+          'bottom_50_pct': quantiles[0]['bottom_50_pct'] + [bottom_50_pct],
+          'top_10_pct': quantiles[0]['top_10_pct'] + [top_10_pct]
+      }]
 
-    return [{'x': newX, 'y': data[0]['y']}], n_intervals # bottom_fifty, top_ten, n_intervals
+    n_iterations = n_clicks + n_intervals
+    data = [{'x': newX, 'y': agents}]
 
+    return bottom_50_pct, top_10_pct, n_iterations, data, quantiles
+    # return data, quantiles
 
 @app.callback(
     Output('interval', 'max_intervals'),
-    [Input('play-button', 'n_clicks')],
+    [Input('play_button', 'n_clicks')],
     [State('interval', 'max_intervals')])
 def play(n_clicks, max_intervals):
 
@@ -165,32 +272,93 @@ def play(n_clicks, max_intervals):
     else:
         return -1
 
+@app.callback(
+	Output('color', 'data'),
+	[Input('group_button', 'n_clicks')],
+	[State('data', 'data'),
+	 State('group', 'value')])
+def group(n_clicks, data, group):
+
+	if n_clicks is None or data is None:
+		raise PreventUpdate
+
+	argsort = numpy.argsort(data[0]['x'])
+	result = [False]*n_agents
+
+	if group == 90:
+		for i in range(int(n_agents * 0.9), n_agents):
+			result[argsort[i]] = True
+	elif group == 75:
+		for i in range(int(n_agents * 0.75), n_agents):
+			result[argsort[i]] = True
+	elif group == 25:
+		for i in range(int(n_agents * 0.25)):
+			result[argsort[i]] = True
+	elif group == 10:
+		for i in range(int(n_agents * 0.1)):
+			result[argsort[i]] = True
+	else:
+		raise PreventUpdate
+
+	return result
 
 @app.callback(
-    [Output('scatter-plot', 'figure'),
-     Output('histogram', 'figure')],
-    [Input('memory', 'data')],
+    [Output('histogram', 'figure'),
+     Output('scatter_plot', 'figure')],
+    [Input('data', 'data'),
+     Input('color', 'data')],
     [State('interval', 'n_intervals')])
-def update_figure(data, n_intervals):
+def update_figure(data, color, n_intervals):
 
-    if data is None or n_intervals % 10 != 0:
+    if data is None or n_intervals % delay != 0:
         raise PreventUpdate
 
-    # if data is None:
-    #     raise PreventUpdate
-
-    return {
-        'data': [go.Scatter(x=data[0]['x'], y=data[0]['y'], mode='markers')],
-        'layout': scatter_plot_layout
-    }, {
+    histogram = {
         'data': [go.Histogram(
-                        x=data[0]['x'], 
-                        xbins=dict(start=0, end=500, size=10), 
-                        autobinx = False,
-                        histnorm='probability')],
-        # 'layout': scatter_plot_layout
+            x=data[0]['x'], 
+            xbins=dict(start=0, end=500, size=10), 
+            autobinx = False, 
+            histnorm='probability')],
+        'layout': histogram_layout
     }
 
+    color = color or [False]*n_agents
+    marker_color = [colors[0]]*n_agents
+    for c in range(len(color)):
+    	if color[c]:
+    		marker_color[c] = colors[1]
 
+    scatter_plot = {
+        'data': [go.Scatter(
+            x=data[0]['x'], 
+            y=agents, 
+            mode='markers',
+            marker=dict(color=marker_color))],
+        'layout': scatter_plot_layout
+    }
+
+    return histogram, scatter_plot
+
+@app.callback(
+	Output('time_series', 'figure'),
+	[Input('quantiles', 'data')])
+def update_quantiles(quantiles):
+
+	if quantiles is None or len(quantiles[0]['bottom_50_pct']) % delay != 0:
+		raise PreventUpdate
+
+	bottom_50_pcts = quantiles[0]['bottom_50_pct']
+	top_10_pcts = quantiles[0]['top_10_pct']
+	n_indices = numpy.arange(len(bottom_50_pcts))
+
+	return {
+		'data': [
+			go.Scatter(x=n_indices, y=bottom_50_pcts, name="Bottom 50%"),
+			go.Scatter(x=n_indices, y=top_10_pcts, name="Top 50%"),
+		],
+		'layout': time_series_layout
+	}
+
+server = app.server
 if __name__ == '__main__':
     app.run_server(debug=True, port=8077, threaded=True)
