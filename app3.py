@@ -58,22 +58,35 @@ initial_data = [{
 
 histogram_layout = go.Layout(
     xaxis=dict(
-        range=[0, xaxis_max]
+        range=[0, xaxis_max],
+        title="Wealth"
     ),
     yaxis=dict(
-        range=[0, 1]
+        range=[0, 1],
+        title="Density"
     ),
     hovermode='closest'
 )
 
 scatter_plot_layout = go.Layout(
     xaxis=dict(
-        range=[0, xaxis_max]
+        range=[0, xaxis_max],
+        title="Wealth"
     ),
     yaxis=dict(
-        range=[0, n_agents]
+        range=[0, n_agents],
+        title="Person"
     ),
     hovermode='closest'
+)
+
+time_series_layout = go.Layout(
+	xaxis=dict(
+        title="Time"
+    ),
+    yaxis=dict(
+        title="Wealth"
+    ),
 )
 
 def get_quantiles(x):
@@ -90,6 +103,16 @@ def get_total_wealth(initial_wealth, n_agents):
 # Layout
 ########################
 app.layout = html.Div([
+
+	html.P("This is an implementation and extension to the classical agent-based model, Simple Economy, in Uri Wilensky's Introduction to Agent-Based Modeling."),
+
+	html.P("The rules are simple. Everyone in an economy starts with 100 dollars, and gives one to a random other every day as long as he/she has any."),
+
+	html.P("The interesting observation is that very soon, despite the fair rules, the wealthiest 10 percent of the population will have more than 50 percent of all the wealth in the economy."),
+
+	html.P("Click the step-button to see what happens after a day. Click the play-button to run the simulation infinitely, and to pause it."),
+
+	html.P("You can also group an income group while running the simulation, to see that the rich don't stay rich, and the poor don't actually stay poor, given time."),
 
     dcc.Store(id='data'),
 
@@ -110,15 +133,18 @@ app.layout = html.Div([
 	    		html.Button('Play', id='play_button'),
 	    		html.Button('Group',id='group_button')
     		]),
-    		dbc.Col(dcc.Dropdown(id='group',
-		    	options=[
-		    		{'label': 'Top 10%', 'value': 90},
-		    		{'label': 'Top 25%', 'value': 75},
-		    		{'label': 'Bottom 25%', 'value': 25},
-		    		{'label': 'Bottom 10%', 'value': 10}
-		    	],
-		    	value=10
-		    ))
+    		dbc.Col([
+    			html.Div("Which income group to highlight?"),
+    			dcc.Dropdown(id='group',
+			    	options=[
+			    		{'label': 'Top 10%', 'value': 90},
+			    		{'label': 'Top 25%', 'value': 75},
+			    		{'label': 'Bottom 25%', 'value': 25},
+			    		{'label': 'Bottom 10%', 'value': 10}
+			    	],
+			    	value=90
+			    )
+		    ])
     	])
     ]),
 
@@ -178,9 +204,10 @@ app.layout = html.Div([
 			    dcc.Graph(id='time_series',
 			    	figure={
 			    		'data': [
-			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5]),
-			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1])
-			    		]
+			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5], name="Bottom 50%"),
+			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1], name="Top 10%")
+			    		],
+			    		'layout': time_series_layout
 			    	}
 			    )
     		])
@@ -331,9 +358,10 @@ def update_quantiles(quantiles):
 
 	return {
 		'data': [
-			go.Scatter(x=n_indices, y=bottom_50_pcts),
-			go.Scatter(x=n_indices, y=top_10_pcts),
-		]
+			go.Scatter(x=n_indices, y=bottom_50_pcts, name="Bottom 50%"),
+			go.Scatter(x=n_indices, y=top_10_pcts, name="Top 50%"),
+		],
+		'layout': time_series_layout
 	}
 
 server = app.server
