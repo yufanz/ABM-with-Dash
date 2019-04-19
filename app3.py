@@ -23,8 +23,10 @@ import numpy
 import random
 
 
-#external_stylesheets = ['https:#codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+external_stylesheets = ['https:#codepen.io/chriddyp/pen/bWLwgP.css']
+# external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
+# app = dash.Dash(__name__, external_stylesheets=[external_stylesheets])
 
 
 ########################
@@ -48,128 +50,142 @@ colors = [
     '#bcbd22',  # curry yellow-green
     '#17becf'   # blue-teal
 ]
+
 initial_data = [{
     'x': [initial_wealth for i in range(n_agents)],
     'y': [i+1 for i in range(n_agents)]
 }]
-layout = go.Layout(
+
+histogram_layout = go.Layout(
+    xaxis=dict(
+        range=[0, xaxis_max]
+    ),
+    yaxis=dict(
+        range=[0, 1]
+    ),
+    hovermode='closest'
+)
+
+scatter_plot_layout = go.Layout(
     xaxis=dict(
         range=[0, xaxis_max]
     ),
     yaxis=dict(
         range=[0, n_agents]
-    )
+    ),
+    hovermode='closest'
 )
 
-########################
-# Functions
-########################
 def get_quantiles(x):
     y = numpy.sort(x)
     bottom_fifty_pct = sum(y[:int(n_agents/2)])
     top_10_pct = sum(y[int(n_agents*9/10):])
     return bottom_fifty_pct, top_10_pct
 
+def get_total_wealth(initial_wealth, n_agents):
+
+	return initial_wealth*n_agents
+
 ########################
 # Layout
 ########################
 app.layout = html.Div([
 
-    dcc.Store(
-        id='data'
-    ),
+    dcc.Store(id='data'),
 
-    dcc.Store(
-    	id='quantiles'
-    ),
+    dcc.Store(id='quantiles'),
 
-    dcc.Store(
-    	id='color'
-    ),
+    dcc.Store(id='color'),
 
-    dcc.Interval(
-        id='interval',
+    dcc.Interval(id='interval',
         interval=interval,
         max_intervals=0,
         n_intervals=0,
     ),
 
-    html.Button('Step',
-        id='step_button',
-        n_clicks=0,
-    ),
+    dbc.Container([
+    	dbc.Row([
+    		dbc.Col([
+    			html.Button('Step', id='step_button', n_clicks=0),
+	    		html.Button('Play', id='play_button'),
+	    		html.Button('Group',id='group_button')
+    		]),
+    		dbc.Col(dcc.Dropdown(id='group',
+		    	options=[
+		    		{'label': 'Top 10%', 'value': 90},
+		    		{'label': 'Top 25%', 'value': 75},
+		    		{'label': 'Bottom 25%', 'value': 25},
+		    		{'label': 'Bottom 10%', 'value': 10}
+		    	],
+		    	value=10
+		    ))
+    	])
+    ]),
 
-    html.Button('Play',
+    dbc.Container([
+    	dbc.Row([
+    		dbc.Col(
+    			dcc.Graph(id='scatter_plot',
+			        figure={
+			            'data': [go.Scatter(
+			                x=initial_data[0]['x'], 
+			                y=initial_data[0]['y'], 
+			                mode='markers')],
+			            'layout': scatter_plot_layout
+			        }
+			    )
+    		),
+    		dbc.Col([
+			    daq.LEDDisplay(id='n_iterations',
+			        label='Iterations',
+			        value=0,
+			    ),
 
-        id='play_button',
-    ),
+			    daq.LEDDisplay(id='bottom_50_pct',
+			        label='Wealth of bottom 50%',
+			        value=initial_wealth*n_agents*0.5,
+			    ),
 
-    html.Button('Group',
+			    daq.LEDDisplay(id='top_10_pct',
+			        label='Wealth of top 10%',
+			        value=initial_wealth*n_agents*0.1,
+			    ),
 
-    	id='group_button',
-    ),
+			    daq.LEDDisplay(id='total_wealth',
+			        label='Total wealth',
+			        value=get_total_wealth(initial_wealth, n_agents),
+			    ),
+    		])
+    	])
+    ]),
 
-    dcc.Dropdown(
-    	id='group',
-    	options=[
-    		{'label': 'Top 10%', 'value': 90},
-    		{'label': 'Top 25%', 'value': 75},
-    		{'label': 'Bottom 25%', 'value': 25},
-    		{'label': 'Bottom 10%', 'value': 10},
-    	],
-    	value=10
-    ),
-
-    daq.LEDDisplay(
-        id='n_iterations',
-        label='Iterations',
-        value=0,
-    ),
-
-    daq.LEDDisplay(
-        id='bottom_50_pct',
-        label='Wealth of bottom 50%',
-        value=initial_wealth*n_agents*0.5,
-    ),
-
-    daq.LEDDisplay(
-        id='top_10_pct',
-        label='Wealth of top 10%',
-        value=initial_wealth*n_agents*0.1,
-    ),
-
-    dcc.Graph(
-        id='scatter_plot',
-        figure={
-            'data': [go.Scatter(
-                x=initial_data[0]['x'], 
-                y=initial_data[0]['y'], 
-                mode='markers')],
-            'layout': layout
-        }
-    ),
-
-    dcc.Graph(
-        id='histogram',
-        figure={
-            'data': [go.Histogram(
-                x=initial_data[0]['x'], 
-                xbins=dict(start=0, end=xaxis_max, size=5), 
-                autobinx = False,
-                histnorm='probability')
-            ],
-        }
-    ),
-
-    dcc.Graph(
-    	id='time_series',
-    	figure={
-    		'data': [
-    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5]),
-    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1])
-    		]
-    	}
-    )
+    dbc.Container([
+    	dbc.Row([
+    		dbc.Col([
+    			dcc.Graph(id='histogram',
+			        figure={
+			            'data': [go.Histogram(
+			                x=initial_data[0]['x'], 
+			                xbins=dict(start=0, end=xaxis_max, size=5), 
+			                autobinx = False,
+			                histnorm='probability')
+			            ],
+			            'layout': histogram_layout
+			        }
+			    ),
+			]),
+			dbc.Col([
+			    dcc.Graph(id='time_series',
+			    	figure={
+			    		'data': [
+			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5]),
+			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1])
+			    		]
+			    	}
+			    )
+    		])
+    	])
+    ])
 ])
 
 ########################
@@ -243,8 +259,6 @@ def group(n_clicks, data, group):
 	if n_clicks is None or data is None:
 		raise PreventUpdate
 
-	print('group value: ', group)
-
 	argsort = numpy.argsort(data[0]['x'])
 	length = len(data[0]['x'])
 	result = [False]*length
@@ -261,6 +275,9 @@ def group(n_clicks, data, group):
 	elif group == 10:
 		for i in range(int(n_agents * 0.1)):
 			result[argsort[i]] = True
+	else:
+		raise PreventUpdate
+
 	return result
 
 @app.callback(
@@ -280,6 +297,7 @@ def update_figure(data, color, n_intervals):
             xbins=dict(start=0, end=500, size=10), 
             autobinx = False, 
             histnorm='probability')],
+        'layout': histogram_layout
     }
 
     color = color or [False]*len(data[0]['x'])
@@ -294,7 +312,7 @@ def update_figure(data, color, n_intervals):
             y=data[0]['y'], 
             mode='markers',
             marker=dict(color=marker_color))],
-        'layout': layout
+        'layout': scatter_plot_layout
     }
 
     return histogram, scatter_plot
