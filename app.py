@@ -25,22 +25,15 @@ import random
 
 external_stylesheets = ['https:#codepen.io/chriddyp/pen/bWLwgP.css']
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID])
 # app = dash.Dash(__name__, external_stylesheets=[external_stylesheets])
-
+# app = dash.Dash(__name__)
 
 ########################
 # Global Variables
 ########################
-initial_wealth = 100
-interval = 10
-delay = 10
-n_agents = 100
-xaxis_max = 5*initial_wealth
-total_wealth = initial_wealth * n_agents
-
 colors = [
-	'#1f77b4',	# muted blue
+    '#1f77b4',  # muted blue
     '#ff7f0e',  # safety orange
     '#2ca02c',  # cooked asparagus green
     '#d62728',  # brick red
@@ -51,9 +44,15 @@ colors = [
     '#bcbd22',  # curry yellow-green
     '#17becf'   # blue-teal
 ]
+initial_wealth = 100
+interval = 10
+delay = 10
+n_agents = 100
+xaxis_max = 5*initial_wealth
+total_wealth = initial_wealth * n_agents
 
-initial_data = [{'x': [initial_wealth for i in range(n_agents)]}]
 agents = numpy.arange(1, n_agents+1)
+initial_data = [{'x': [initial_wealth for i in range(n_agents)]}]
 
 histogram_layout = go.Layout(
     xaxis=dict(
@@ -61,30 +60,28 @@ histogram_layout = go.Layout(
         title="Wealth"
     ),
     yaxis=dict(
-        range=[0, 1],
+        range=[0, 0.5],
         title="Density"
     ),
     hovermode='closest'
 )
-
 scatter_plot_layout = go.Layout(
     xaxis=dict(
         range=[0, xaxis_max],
         title="Wealth"
     ),
     yaxis=dict(
-        range=[0, n_agents],
+        range=[0, n_agents+10],
         title="Person"
     ),
     hovermode='closest'
 )
-
 time_series_layout = go.Layout(
 	xaxis=dict(
         title="Time"
     ),
     yaxis=dict(
-        title="Wealth"
+        title="Aggregate Wealth"
     ),
 )
 
@@ -99,15 +96,21 @@ def get_quantiles(x):
 ########################
 app.layout = html.Div([
 
-	html.P("This is an implementation and extension to the classical agent-based model, Simple Economy, in Uri Wilensky's Introduction to Agent-Based Modeling."),
+	# html.P("This is an implementation and extension to the classical agent-based model, Simple Economy, in Uri Wilensky's Introduction to Agent-Based Modeling."),
 
-	html.P("The rules are simple. Everyone in an economy starts with 100 dollars, and gives one to a random other every day as long as he/she has any."),
+	# html.P("The rules are simple. Everyone in an economy starts with 100 dollars, and gives one to a random other every day as long as he/she has any."),
 
-	html.P("The interesting observation is that very soon, despite the fair rules, the wealthiest 10 percent of the population will have more than 50 percent of all the wealth in the economy."),
+	# html.P("The interesting observation is that very soon, despite the fair rules, the wealthiest 10 percent of the population will have more than 50 percent of all the wealth in the economy."),
 
-	html.P("Click the step-button to see what happens after a day. Click the play-button to run the simulation infinitely, and to pause it."),
+	# html.P("Click the step-button to see what happens after a day. Click the play-button to run the simulation infinitely, and to pause it."),
 
-	html.P("You can also group an income group while running the simulation, to see that the rich don't stay rich, and the poor don't actually stay poor, given time."),
+	# html.P("You can also group an income group while running the simulation, to see that the rich don't stay rich, and the poor don't actually stay poor, given time."),
+
+    dcc.Markdown('''
+    ## A Mixed Recovery
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+    '''.replace('  ', ''), className='container',
+    containerProps={'style': {'maxWidth': '650px'}}),
 
     dcc.Store(id='data'),
 
@@ -121,93 +124,126 @@ app.layout = html.Div([
         n_intervals=0,
     ),
 
-    dbc.Container([
-    	dbc.Row([
-    		dbc.Col([
-    			html.Button('Step', id='step_button', n_clicks=0),
-	    		html.Button('Play', id='play_button'),
-	    		html.Button('Group',id='group_button')
-    		]),
-    		dbc.Col([
-    			html.Div("Which income group to highlight?"),
-    			dcc.Dropdown(id='group',
-			    	options=[
-			    		{'label': 'Top 10%', 'value': 90},
-			    		{'label': 'Top 25%', 'value': 75},
-			    		{'label': 'Bottom 25%', 'value': 25},
-			    		{'label': 'Bottom 10%', 'value': 10}
-			    	],
-			    	value=90
-			    )
-		    ])
-    	])
-    ]),
 
     dbc.Container([
-    	dbc.Row([
-    		dbc.Col(
-    			dcc.Graph(id='scatter_plot',
-			        figure={
-			            'data': [go.Scatter(
-			                x=initial_data[0]['x'], 
-			                y=agents, 
-			                mode='markers')],
-			            'layout': scatter_plot_layout
-			        }
-			    )
-    		),
-    		dbc.Col([
-			    daq.LEDDisplay(id='n_iterations',
-			        label='Iterations',
-			        value=0,
-			    ),
 
-			    daq.LEDDisplay(id='bottom_50_pct',
-			        label='Wealth of bottom 50%',
-			        value=initial_wealth*n_agents*0.5,
-			    ),
+        dbc.Row([
+            dbc.Col([html.Button('Step', id='step_button', n_clicks=0)]),
+            dbc.Col([html.Button('Play', id='play_button')]),
+            dbc.Col([html.Button('Group',id='group_button')]),
+            dbc.Col([dcc.Dropdown(id='group',
+                        options=[
+                            {'label': 'Top 10%', 'value': 90},
+                            {'label': 'Top 25%', 'value': 75},
+                            {'label': 'Bottom 25%', 'value': 25},
+                            {'label': 'Bottom 10%', 'value': 10}
+                        ],
+                        value=90
+                    )]),
+        ]),
 
-			    daq.LEDDisplay(id='top_10_pct',
-			        label='Wealth of top 10%',
-			        value=initial_wealth*n_agents*0.1,
-			    ),
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='scatter_plot',
+                    figure={
+                        'data': [go.Scatter(
+                            x=initial_data[0]['x'], 
+                            y=agents, 
+                            mode='markers')],
+                        'layout': scatter_plot_layout
+                    }
+                )
+            ])
+        ]),
 
-			    daq.LEDDisplay(id='total_wealth',
-			        label='Total wealth',
-			        value=total_wealth,
-			    )
-    		])
-    	])
-    ]),
+        dbc.Row([
+            dbc.Col([
+                daq.LEDDisplay(
+                    id='n_iterations',
+                    label='Iterations',
+                    value=0,
+                )
+            ]),
+            dbc.Col([
+                daq.LEDDisplay(
+                    id='bottom_50_pct',
+                    label='Wealth of bottom 50%',
+                    value=initial_wealth*n_agents*0.5,
+                )
+            ]),
+            dbc.Col([
+                daq.LEDDisplay(
+                    id='top_10_pct',
+                    label='Wealth of top 10%',
+                    value=initial_wealth*n_agents*0.1,
+                )
+            ]),
+            dbc.Col([
+                daq.LEDDisplay(
+                    id='total_wealth',
+                    label='Total wealth',
+                    value=total_wealth,
+                )
+            ])
+        ]),
 
-    dbc.Container([
-    	dbc.Row([
-    		dbc.Col([
-    			dcc.Graph(id='histogram',
-			        figure={
-			            'data': [go.Histogram(
-			                x=initial_data[0]['x'], 
-			                xbins=dict(start=0, end=xaxis_max, size=5), 
-			                autobinx = False,
-			                histnorm='probability')
-			            ],
-			            'layout': histogram_layout
-			        }
-			    ),
-			]),
-			dbc.Col([
-			    dcc.Graph(id='time_series',
-			    	figure={
-			    		'data': [
-			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5], name="Bottom 50%"),
-			    			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1], name="Top 10%")
-			    		],
-			    		'layout': time_series_layout
-			    	}
-			    )
-    		])
-    	])
-    ])
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='histogram',
+                    figure={
+                        'data': [go.Histogram(
+                            x=initial_data[0]['x'], 
+                            xbins=dict(start=0, end=xaxis_max, size=5), 
+                            autobinx = False,
+                            histnorm='probability')
+                        ],
+                        'layout': histogram_layout
+                    }
+                ),
+            ]),
+            dbc.Col([
+                dcc.Graph(id='time_series',
+                    figure={
+                        'data': [
+                            go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5], name="Bottom 50%"),
+                            go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1], name="Top 10%")
+                        ],
+                        'layout': time_series_layout
+                    }
+                )
+            ])
+        ])
+
+    ], className="container"),
+
+   #  dbc.Container([
+   #  	dbc.Row([
+   #  		dbc.Col([
+   #  			dcc.Graph(id='histogram',
+			#         figure={
+			#             'data': [go.Histogram(
+			#                 x=initial_data[0]['x'], 
+			#                 xbins=dict(start=0, end=xaxis_max, size=5), 
+			#                 autobinx = False,
+			#                 histnorm='probability')
+			#             ],
+			#             'layout': histogram_layout
+			#         }
+			#     ),
+			# ]),
+			# dbc.Col([
+			#     dcc.Graph(id='time_series',
+			#     	figure={
+			#     		'data': [
+			#     			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.5], name="Bottom 50%"),
+			#     			go.Scatter(x=[0], y=[initial_wealth*n_agents*0.1], name="Top 10%")
+			#     		],
+			#     		'layout': time_series_layout
+			#     	}
+			#     )
+   #  		])
+   #  	])
+   #  ])
 ])
 
 ########################
